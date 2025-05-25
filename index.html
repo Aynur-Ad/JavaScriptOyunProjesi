@@ -25,16 +25,16 @@ let height = window.innerHeight;
 canvas.width = width;
 canvas.height = height;
 
-const backgroundMusic = new Audio("music.mp3");
+const backgroundMusic = new Audio("sounds/music.mp3");
 backgroundMusic.loop = true; // sürekli çalsın
 backgroundMusic.volume = 0.3; 
 
 let musicStarted = false;
 
-const gecisSesi = new Audio("gecisSesi.mp3");
+const gecisSesi = new Audio("sounds/gecisSesi.mp3");
 gecisSesi.volume = 0.5;
 
-const hareketSesi = new Audio("hareketSesi.mp3");
+const hareketSesi = new Audio("sounds/hareketSesi.mp3");
 hareketSesi.volume = 0.5;
 let lastMoveSoundTime = 0; // Sesin sık çalmaması için zaman kontrolü yapıyoruz
 
@@ -56,31 +56,31 @@ const bubbles = Array.from({ length: 100 }, () => ({
 }));
 
 const pawImage = new Image();
-pawImage.src = "pati.png";
+pawImage.src = "images/pati.png";
 
 // Hayal (DREAMWORLD) sahnesi için
 let gameResult = null; // "win", "lose" veya null
 
 const kaleImage = new Image();
-kaleImage.src = "kale.png";
+kaleImage.src = "images/kale.png";
 
 const yildizImage = new Image();
-yildizImage.src = "yildiz.png";
+yildizImage.src = "images/yildiz.png";
 
 const patiImage = new Image();
-patiImage.src = "pati1.png";
+patiImage.src = "images/pati1.png";
 
 const saridd = new Image();
-saridd.src = "saridd.png";
+saridd.src = "images/saridd.png";
 
 const kirmizidd = new Image();
-kirmizidd.src = "kirmizidd.png";
+kirmizidd.src = "images/kirmizidd.png";
 
 const mavidd = new Image();
-mavidd.src = "mavidd.png";
+mavidd.src = "images/mavidd.png";
 
 const asker = new Image();
-asker.src = "asker.png";
+asker.src = "assets/asker.png";
 
 let askerX = 100; // Sol ortaya yakın başlatalım
 let askerY = canvas.height / 2 - 50; // Dikeyde ortalanmış olsun
@@ -111,12 +111,12 @@ const cubeImages = [
   new Image()
 ];
 
-cubeImages[0].src = "kup1.png";
-cubeImages[1].src = "kup2.png";
-cubeImages[2].src = "kup3.png";
+cubeImages[0].src = "assets/kup1.png";
+cubeImages[1].src = "assets/kup2.png";
+cubeImages[2].src = "assets/kup3.png";
 
 const soldierImage = new Image();
-soldierImage.src = "asker.png";
+soldierImage.src = "assets/asker.png";
 
 const cubes = [
   { x: width / 2 - 50, y: height / 2, size: 80, imageIndex: 0 },
@@ -132,10 +132,10 @@ const soldier = {
 };
 
 const blokImage = new Image();
-blokImage.src = "blok.png";
+blokImage.src = "images/blok.png";
 
 const yapbozImage = new Image();
-yapbozImage.src = "yapboz.png";
+yapbozImage.src = "images/yapboz.png";
 
 let dragging = null, offsetX = 0, offsetY = 0;
 const duvarHeight = 150;
