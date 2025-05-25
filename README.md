@@ -24,11 +24,11 @@ Bu oyunda gölgeler oluşturulabilir fakat gölgeler değişse bile engeller sab
 
 - Oyun İçi Görseller:
 
-![Oyunun Ekran Görüntüsü](Screenshots/Resim1.png)
+![Oyunun Ekran Görüntüsü](screenshots/Resim1.png)
 
-![Oyunun Ekran Görüntüsü](Screenshots/Resim2.png)
+![Oyunun Ekran Görüntüsü](screenshots/Resim2.png)
 
-![Oyunun Ekran Görüntüsü](Screenshots/Resim3.png)
+![Oyunun Ekran Görüntüsü](screenshots/Resim3.png)
 
 - Oyun Dünyası'nda; oyuncak asker ve küpler mouse ile hareket ettirilir.
 
