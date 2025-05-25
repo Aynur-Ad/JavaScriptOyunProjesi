@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>DREAM OF SHADOWS</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+    }
+    canvas {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+<canvas id="gameCanvas"></canvas>
+<script>
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
+
+let width = window.innerWidth;
+let height = window.innerHeight;
+canvas.width = width;
+canvas.height = height;
+
+const backgroundMusic = new Audio("music.mp3");
+backgroundMusic.loop = true; // sürekli çalsın
+backgroundMusic.volume = 0.3; 
+
+let musicStarted = false;
+
+const gecisSesi = new Audio("gecisSesi.mp3");
+gecisSesi.volume = 0.5;
+
+const hareketSesi = new Audio("hareketSesi.mp3");
+hareketSesi.volume = 0.5;
+let lastMoveSoundTime = 0; // Sesin sık çalmaması için zaman kontrolü yapıyoruz
+
+// Ekran Durumları (3 tane ekran var)
+let currentScreen = "start"; // start | toyworld | dreamworld
+
+// Butonlar
+const pawButton = { x: width / 2, y: height / 2, size: 200 }; // oyunu başlatır
+const dreamButton = { x: width - 170, y: height - 80, width: 140, height: 60, text: "DREAM" }; // hayal dünyasına geçişi sağlar
+const realityButton = { x: width - 170, y: height - 80, width: 140, height: 60, text: "REALITY" }; // oyun dünyasına geri dönmeyi sağlar
+const backButton = {x: 20, y: canvas.height - 70, width: 100, height: 40, text: "Back"}; // her durumda başlangıca döndürür
+
+// Başlangıç (START) sahnesi için
+const bubbles = Array.from({ length: 100 }, () => ({
+  x: Math.random() * width,
+  y: Math.random() * height,
+  radius: Math.random() * 5 + 2,
+  speed: Math.random() * 0.5 + 0.2
+}));
+
+const pawImage = new Image();
+pawImage.src = "pati.png";
+
+// Hayal (DREAMWORLD) sahnesi için
+let gameResult = null; // "win", "lose" veya null
+
+const kaleImage = new Image();
+kaleImage.src = "kale.png";
+
+const yildizImage = new Image();
+yildizImage.src = "yildiz.png";
+
+const patiImage = new Image();
+patiImage.src = "pati1.png";
+
+const saridd = new Image();
+saridd.src = "saridd.png";
+
+const kirmizidd = new Image();
+kirmizidd.src = "kirmizidd.png";
+
+const mavidd = new Image();
+mavidd.src = "mavidd.png";
+
+const asker = new Image();
+asker.src = "asker.png";
+
+let askerX = 100; // Sol ortaya yakın başlatalım
+let askerY = canvas.height / 2 - 50; // Dikeyde ortalanmış olsun
+const askerWidth = 50;
+const askerHeight = 50;
+const askerSpeed = 5;
+
+// askerin diğer bileşenlerle çarpışma durumunu kontrol ediyor
+function isColliding(ax, ay, aw, ah, bx, by, bw, bh) {
+  return (
+    ax < bx + bw &&
+    ax + aw > bx &&
+    ay < by + bh &&
+    ay + ah > by
+  );
+}
+// butonlara tıklandığında oyunu resetliyor, asker başlangıç konumuna dönüyor
+function resetDreamWorldState() {
+  askerX = 100;
+  askerY = canvas.height / 2;
+  gameResult = null;
+}
+
+// Oyuncak (TOYWORLD) sahnesi için
+const cubeImages = [
+  new Image(),
+  new Image(),
+  new Image()
+];
+
+cubeImages[0].src = "kup1.png";
+cubeImages[1].src = "kup2.png";
+cubeImages[2].src = "kup3.png";
+
+const soldierImage = new Image();
+soldierImage.src = "asker.png";
+
+const cubes = [
+  { x: width / 2 - 50, y: height / 2, size: 80, imageIndex: 0 },
+  { x: width / 2, y: height / 2, size: 80, imageIndex: 1 },
+  { x: width / 2 + 50, y: height / 2, size: 80, imageIndex: 2 },
+];
+
+const soldier = {
+  x: width / 2 + 70,
+  y: height / 2 - 60,
+  width: 50,
+  height: 80,
+};
+
+const blokImage = new Image();
+blokImage.src = "blok.png";
+
+const yapbozImage = new Image();
+yapbozImage.src = "yapboz.png";
+
+let dragging = null, offsetX = 0, offsetY = 0;
+const duvarHeight = 150;
+const lightY = height - 50;
+const lightX = width / 2;
+
+// === GİRİŞ EKRANI ===
+// arka planı oluşturur
+function drawGradientBackground() {
+  const gradient = ctx.createLinearGradient(0, 0, width, height);
+  gradient.addColorStop(0, "#00bcd4");
+  gradient.addColorStop(0.5, "#4caf50");
+  gradient.addColorStop(1, "#e91e63");
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, width, height);
+}
+// baloncukları oluşturur
+function drawBubbles() {
+  for (let b of bubbles) {
+    ctx.beginPath();
+    ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(255, 255, 255, 0.3)";
+    ctx.fill();
+    b.y -= b.speed;
+    if (b.y + b.radius < 0) {
+      b.y = height + b.radius;
+      b.x = Math.random() * width;
+    }
+  }
+}
+// pati şeklindeli start butonunu oluşturur
+function drawPawButton() {
+  if (pawImage.complete) {
+    ctx.drawImage(
+      pawImage,
+      pawButton.x - pawButton.size / 2,
+      pawButton.y - pawButton.size / 2,
+      pawButton.size,
+      pawButton.size
+    );
+    ctx.fillStyle = "#000";
+    ctx.font = "bold 20px sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("START", pawButton.x, pawButton.y + 50);
+  }
+}
+
+// === OYUN DÜNYASI ===
+// feneri oluşturur
+function drawLightCone() {
+  const coneWidth = 800;
+  const coneTopY = duvarHeight + 20;
+  const gradient = ctx.createRadialGradient(lightX, lightY, 10, lightX, coneTopY, 300);
+  gradient.addColorStop(0, "rgba(255, 255, 200, 0.5)");
+  gradient.addColorStop(1, "rgba(255, 255, 200, 0)");
+  ctx.fillStyle = gradient;
+  ctx.beginPath();
+  ctx.moveTo(lightX - coneWidth / 2, coneTopY);
+  ctx.lineTo(lightX, lightY);
+  ctx.lineTo(lightX + coneWidth / 2, coneTopY);
+  ctx.closePath();
+  ctx.fill();
+}
+// duvardaki gölgeleri oluşturur
+function drawShadowOnWall(obj, isSoldier = false) {
+  const objCenterX = obj.x + (isSoldier ? obj.width / 2 : obj.size / 2);
+  const objCenterY = obj.y + (isSoldier ? obj.height / 2 : obj.size / 2);
+  const distance = Math.max(objCenterY - duvarHeight, 50);
+  const scale = Math.min(distance / 300, 1.5);
+  ctx.fillStyle = "rgba(80, 80, 80, 0.3)";
+  if (isSoldier) {
+    ctx.beginPath();
+    ctx.ellipse(objCenterX, duvarHeight - 10, 40 * scale, 60 * scale, 0, 0, Math.PI * 2);
+    ctx.fill();
+  } else {
+    ctx.fillRect(objCenterX - 20 * scale, duvarHeight - 60 * scale, 40 * scale, 60 * scale);
+  }
+}
+// oyun sahnesini oluşturur
+function drawGameScene() {
+  ctx.fillStyle = "#2e7d32";
+  ctx.fillRect(0, 0, width, height);
+  ctx.fillStyle = "#B0A690";
+  ctx.fillRect(0, 0, width, duvarHeight);
+  ctx.fillStyle = "#B0A690";
+  ctx.fillRect(0, height - 100, width, 100);
+  ctx.beginPath();
+  ctx.arc(lightX, lightY, 30, 0, Math.PI * 2);
+  ctx.fillStyle = "#ffeb3b";
+  ctx.fill();
+  drawLightCone();
+  for (let cube of cubes) drawShadowOnWall(cube);
+  drawShadowOnWall(soldier, true);
+
+  // Küplerin resimlerini çizer
+  for (let i = 0; i < cubes.length; i++) {
+      const cube = cubes[i];
+      const img = cubeImages[cube.imageIndex];
+      if (img.complete) {
+        ctx.drawImage(img, cube.x, cube.y, cube.size, cube.size);
+      }
+  }
+
+  // Askerin resmini çizer
+  if (soldierImage.complete) {
+  ctx.drawImage(soldierImage, soldier.x, soldier.y, soldier.width, soldier.height);
+  }
+  ctx.arc(soldier.x + soldier.width / 2, soldier.y - 10, 8, 0, Math.PI * 2);
+  ctx.fill();
+
+  // blok.png - Sol ortaya ekler
+  if (blokImage.complete) {
+  const blokWidth = 300; 
+  const blokHeight = 150;
+  const blokX = 50;  // sol kenara yakın olsun
+  const blokY = height / 2 - blokHeight / 2; // dikey ortalansın
+  ctx.drawImage(blokImage, blokX, blokY, blokWidth, blokHeight);
+  }
+
+  // yapboz.png - Sağ ortaya ekler
+  if (yapbozImage.complete) {
+  const yapbozWidth = 300; 
+  const yapbozHeight = 150;
+  const yapbozX = width - yapbozWidth - 50; // sağ kenara 50px içeride olsun
+  const yapbozY = height / 2 - yapbozHeight / 2; // dikey ortalansın
+  ctx.drawImage(yapbozImage, yapbozX, yapbozY, yapbozWidth, yapbozHeight);
+  }
+  
+  drawButton(dreamButton);
+  drawButton(backButton);
+}
+
+// === DREAM DÜNYASI ===
+// hayal dünyasını oluşturur
+function drawDreamScene() {
+  const gradient = ctx.createLinearGradient(0, 0, width, height);
+  gradient.addColorStop(0, "#5d4037"); // kahverengi
+  gradient.addColorStop(1, "#fff8e1"); // krem
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, width, height);
+
+  // Sağ ortaya kale.png ekler
+  ctx.drawImage(kaleImage, canvas.width - 500, canvas.height / 2 - 200, 500, 450);
+
+  // Üst ortalara yildiz.png ekler
+  ctx.drawImage(yildizImage, canvas.width / 2 - 50, 50, 250, 250);
+
+  // yildiz.png'nin sol çapraz altına pati1.png ekler
+  ctx.drawImage(patiImage, canvas.width / 2 - 250, 100, 200, 200);
+
+  // Hayal dünyasında ortalanmış ve basamak görünümlü üç dikdörtgen resmi ekler
+  const totalWidth = 3 * 60 + 2 * 15; // 3 resim (60px) + 2 boşluk (15px)
+  const startX = (canvas.width - totalWidth) / 2; // ortaya hizalayalım
+  const baseY = canvas.height - 80; // Alt çizgiye yakın hizalayalım
+  ctx.drawImage(saridd, startX - 30, baseY - 150, 150, 230);      // En kısa (solda)
+  ctx.drawImage(kirmizidd, startX + 100, baseY - 200, 100, 250);  // Orta
+  ctx.drawImage(mavidd, startX + 200, baseY - 250, 100, 300);   // En uzun (sağda)
+
+  // askeri ekler
+  ctx.drawImage(asker, askerX, askerY, askerWidth * 1.5, askerHeight * 1.5);
+
+  // dikdörtgen ve diğer resimlerin konumlarını belirler(çarpışma kontrolü için)
+  const rectangles = [
+  { x: startX - 30, y: baseY - 150, w: 150, h: 230 },      // saridd için
+  { x: startX + 100, y: baseY - 200, w: 100, h: 250 },     // kirmizidd için
+  { x: startX + 200, y: baseY - 250, w: 100, h: 300 }      // mavidd için
+  ];
+  const yildizObj = { x: canvas.width / 2 - 50, y: 50, w: 250, h: 250 };
+  const patiObj = { x: canvas.width / 2 - 250, y: 100, w: 200, h: 200 };
+  const kaleObj = { x: canvas.width - 500, y: canvas.height / 2 - 200, w: 500, h: 450 };
+  
+// Çarpışma kontrollerini yapar (sadece bir kez çalışsın diye)
+if (gameResult === null) {
+  for (const rect of rectangles) {
+    if (isColliding(askerX, askerY, askerWidth, askerHeight, rect.x, rect.y, rect.w, rect.h)) {
+      gameResult = "lose";
+    }
+  }
+
+  if (isColliding(askerX, askerY, askerWidth, askerHeight, yildizObj.x, yildizObj.y, yildizObj.w, yildizObj.h)) {
+    gameResult = "lose";
+  }
+
+  if (isColliding(askerX, askerY, askerWidth, askerHeight, patiObj.x, patiObj.y, patiObj.w, patiObj.h)) {
+    gameResult = "lose";
+  }
+
+  if (isColliding(askerX, askerY, askerWidth, askerHeight, kaleObj.x, kaleObj.y, kaleObj.w, kaleObj.h)) {
+    gameResult = "win";
+  }
+}
+// oyun sonucunu ekranda gösterir
+if (gameResult === "win") {
+  ctx.fillStyle = "green";
+  ctx.font = "48px Arial";
+  ctx.textAlign = "center";       // yatay ortalansın
+  ctx.textBaseline = "middle";    // dikey ortalansın
+  ctx.fillText("YOU WIN!", canvas.width / 2, canvas.height / 2);
+} else if (gameResult === "lose") {
+  ctx.fillStyle = "red";
+  ctx.font = "48px Arial";
+  ctx.textAlign = "center";       // yatay ortalansın
+  ctx.textBaseline = "middle";    // dikey ortalansın
+  ctx.fillText("GAME OVER", canvas.width / 2, canvas.height / 2);
+}
+
+  drawButton(realityButton);
+  drawButton(backButton);
+}
+
+// butonları oluşturur
+function drawButton(button) {
+  ctx.fillStyle = "#FFA500";
+  ctx.fillRect(button.x, button.y, button.width, button.height);
+  ctx.strokeStyle = "#000";
+  ctx.strokeRect(button.x, button.y, button.width, button.height);
+  ctx.fillStyle = "#000";
+  ctx.font = "bold 16px sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(button.text, button.x + button.width / 2, button.y + button.height / 2);
+}
+
+// === ANİMASYON KISMI===
+// ekran durumlarına göre ilgili fonksiyonları çağırıp ekranları gösterir
+function animate() {
+  ctx.clearRect(0, 0, width, height);
+  if (currentScreen === "start") {
+    drawGradientBackground();
+    drawBubbles();
+    drawPawButton();
+  } else if (currentScreen === "toyworld") {
+    drawGameScene();
+  } else if (currentScreen === "dreamworld") {
+    drawDreamScene();
+  }
+  requestAnimationFrame(animate);
+}
+pawImage.onload = () => { animate(); };
+
+// === ETKİLEŞİMLERİ EKLEME ===
+// mouse ile tıklama olaylarını kontrol eder
+canvas.addEventListener("click", (e) => {
+  // start butonuna tıkladıktan oyun sekmesi kapanana kadar çalmaya devam eder
+  if (!musicStarted) {
+    backgroundMusic.play().catch(() => {});
+    musicStarted = true;
+  }
+
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+  // giriş ekranı olaylarını kontrol eder
+  if (currentScreen === "start") {
+    const within = mx >= pawButton.x - pawButton.size / 2 &&
+                   mx <= pawButton.x + pawButton.size / 2 &&
+                   my >= pawButton.y - pawButton.size / 2 &&
+                   my <= pawButton.y + pawButton.size / 2;
+    // start butonuna tıklanınca geçiş sesi çıkar
+    if (within) {
+      gecisSesi.currentTime = 0;
+      gecisSesi.play();
+      currentScreen = "toyworld";
+    }
+  // oyun dünyası olaylarını kontrol eder
+  } else if (currentScreen === "toyworld") {
+    // dream butonu kontrolü yapar
+    if (mx >= dreamButton.x && mx <= dreamButton.x + dreamButton.width &&
+        my >= dreamButton.y && my <= dreamButton.y + dreamButton.height) {
+      // dream butonuna tıklanınca geçiş sesi çıkar
+      gecisSesi.currentTime = 0;
+      gecisSesi.play();
+      currentScreen = "dreamworld";
+    }
+    // back butonu kontrolü yapar
+    else if (mx >= backButton.x && mx <= backButton.x + backButton.width &&
+             my >= backButton.y && my <= backButton.y + backButton.height) {
+      // back butonuna tıklanınca geçiş sesi çıkar
+      gecisSesi.currentTime = 0;
+      gecisSesi.play();
+      currentScreen = "start";
+    }
+
+  } else if (currentScreen === "dreamworld") {
+    // reality butonu kontrolü yapar
+    if (mx >= realityButton.x && mx <= realityButton.x + realityButton.width &&
+        my >= realityButton.y && my <= realityButton.y + realityButton.height) {
+      // reality butonuna tıklanınca geçiş sesi çıkar
+      gecisSesi.currentTime = 0;
+      gecisSesi.play();
+      resetDreamWorldState(); // oyunu sıfırlar
+      currentScreen = "toyworld"; // oyun dünyasına döndürür
+    }
+    // back butonu kontrolü yapar
+    else if (mx >= backButton.x && mx <= backButton.x + backButton.width &&
+             my >= backButton.y && my <= backButton.y + backButton.height) {
+      // back butonuna tıklanınca geçiş sesi çıkar
+      gecisSesi.currentTime = 0;
+      gecisSesi.play();
+      resetDreamWorldState(); // oyunu sıfırlar
+      currentScreen = "start"; // başlangıca döndürür
+    }
+  }
+});
+
+// Hareket (dreamworld sahnesi için)
+document.addEventListener("keydown", function (e) {
+  if (currentScreen === "dreamworld") {
+    let moved = false;
+
+    if (e.key === "ArrowRight") {
+      askerX += askerSpeed;
+      moved = true;
+    } else if (e.key === "ArrowLeft") {
+      askerX -= askerSpeed;
+      moved = true;
+    } else if (e.key === "ArrowUp") {
+      askerY -= askerSpeed;
+      moved = true;
+    } else if (e.key === "ArrowDown") {
+      askerY += askerSpeed;
+      moved = true;
+    }
+    // asker oklar ile hareket ettiğinde ses çıkar
+    if (moved) {
+      hareketSesi.currentTime = 0;
+      hareketSesi.play();
+    }
+  }
+});
+
+// Sürükleme (toyworld sahnesi için)
+canvas.addEventListener("mousedown", (e) => {
+  if (currentScreen !== "toyworld") return;
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+
+  for (let cube of cubes) {
+    if (mx >= cube.x && mx <= cube.x + cube.size &&
+        my >= cube.y && my <= cube.y + cube.size) {
+      dragging = cube;
+      offsetX = mx - cube.x;
+      offsetY = my - cube.y;
+      return;
+    }
+  }
+
+  if (mx >= soldier.x && mx <= soldier.x + soldier.width &&
+      my >= soldier.y && my <= soldier.y + soldier.height) {
+    dragging = soldier;
+    offsetX = mx - soldier.x;
+    offsetY = my - soldier.y;
+  }
+});
+
+canvas.addEventListener("mousemove", (e) => {
+  if (!dragging || currentScreen !== "toyworld") return;
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+  const newX = mx - offsetX;
+  const newY = my - offsetY;
+  const draggingWidth = dragging.width || dragging.size;
+  const draggingHeight = dragging.height || dragging.size;
+
+  const rectsOverlap = (r1, r2) => !(r2.x > r1.x + r1.width ||
+                                    r2.x + r2.width < r1.x ||
+                                    r2.y > r1.y + r1.height ||
+                                    r2.y + r2.height < r1.y);
+
+  const newRect = { x: newX, y: newY, width: draggingWidth, height: draggingHeight };
+  const otherRects = cubes.concat(soldier).filter(o => o !== dragging).map(o => ({
+    x: o.x, y: o.y,
+    width: o.width || o.size,
+    height: o.height || o.size
+  }));
+
+  if (!otherRects.some(r => rectsOverlap(r, newRect))) {
+    dragging.x = Math.min(Math.max(newX, 0), width - draggingWidth);
+    dragging.y = Math.min(Math.max(newY, duvarHeight), height - 100 - draggingHeight);
+
+    // oyun dünyasında asker,küpler hareket ettiğinde bu ses çalar
+    const now = Date.now();
+    if (now - lastMoveSoundTime > 100) { // 0.1 saniyede bir çalsın
+      hareketSesi.currentTime = 0;
+      hareketSesi.play();
+      lastMoveSoundTime = now;
+    }
+  }
+});
+
+canvas.addEventListener("mouseup", () => { dragging = null; });
+
+// sekme durumuna göre ekranları,butonları vb. tekrar boyutlandırır
+window.addEventListener("resize", () => {
+  width = window.innerWidth;
+  height = window.innerHeight;
+  canvas.width = width;
+  canvas.height = height;
+  dreamButton.x = width - 150;
+  dreamButton.y = height - 60;
+  realityButton.x = width - 150;
+  realityButton.y = height - 60;
+  backButton.x = 20;          
+  backButton.y = height - 60; 
+});
+</script>
+</body>
+</html>
